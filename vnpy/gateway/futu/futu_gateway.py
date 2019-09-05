@@ -324,7 +324,8 @@ class FutuGateway(BaseGateway):
             account = AccountData(
                 accountid=f"{self.gateway_name}_{self.market}",
                 balance=float(row["total_assets"]),
-                frozen=(float(row["total_assets"]) - float(row["avl_withdrawal_cash"])),
+                frozen=(float(row["total_assets"]) -
+                        float(row["avl_withdrawal_cash"])),
                 gateway_name=self.gateway_name,
             )
             self.on_account(account)

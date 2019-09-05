@@ -234,7 +234,6 @@ class BacktestingEngine:
 
         while start < self.end:
             end = min(end, self.end)  # Make sure end time stays within set range
-
             if self.mode == BacktestingMode.BAR:
                 data = load_bar_data(
                     self.symbol,
@@ -391,7 +390,8 @@ class BacktestingEngine:
         else:
             # Calculate balance related time series data
             df["balance"] = df["net_pnl"].cumsum() + self.capital
-            df["return"] = np.log(df["balance"] / df["balance"].shift(1)).fillna(0)
+            df["return"] = np.log(
+                df["balance"] / df["balance"].shift(1)).fillna(0)
             df["highlevel"] = (
                 df["balance"].rolling(
                     min_periods=1, window=len(df), center=False).max()
@@ -955,7 +955,8 @@ class BacktestingEngine:
         if stop:
             vt_orderid = self.send_stop_order(direction, offset, price, volume)
         else:
-            vt_orderid = self.send_limit_order(direction, offset, price, volume)
+            vt_orderid = self.send_limit_order(
+                direction, offset, price, volume)
         return [vt_orderid]
 
     def send_stop_order(

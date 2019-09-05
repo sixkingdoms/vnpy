@@ -28,7 +28,7 @@ class CtaTemplate(ABC):
         self.cta_engine = cta_engine
         self.strategy_name = strategy_name
         self.vt_symbol = vt_symbol
-
+        self.vt_symbol_list = [self.vt_symbol]
         self.inited = False
         self.trading = False
         self.pos = 0

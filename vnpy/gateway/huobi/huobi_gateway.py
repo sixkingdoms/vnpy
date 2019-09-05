@@ -569,6 +569,7 @@ class HuobiWebsocketApiBase(WebsocketClient):
     def login(self):
         """"""
         params = {"op": "auth"}
+
         params.update(create_signature(self.key, "GET", self.sign_host, self.path, self.secret))
         return self.send_packet(params)
 
@@ -614,6 +615,7 @@ class HuobiWebsocketApiBase(WebsocketClient):
 
 class HuobiTradeWebsocketApi(HuobiWebsocketApiBase):
     """"""
+
     def __init__(self, gateway):
         """"""
         super().__init__(gateway)

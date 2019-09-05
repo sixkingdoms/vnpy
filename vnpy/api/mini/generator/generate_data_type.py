@@ -72,5 +72,6 @@ class DataTypeGenerator:
 
 
 if __name__ == "__main__":
-    generator = DataTypeGenerator("../include/mini/ThostFtdcUserApiDataType.h", "mini")
+    generator = DataTypeGenerator(
+        "../include/mini/ThostFtdcUserApiDataType.h", "mini")
     generator.run()

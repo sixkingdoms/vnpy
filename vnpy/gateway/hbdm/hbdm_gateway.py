@@ -786,6 +786,7 @@ class HbdmWebsocketApiBase(WebsocketClient):
 
 class HbdmTradeWebsocketApi(HbdmWebsocketApiBase):
     """"""
+
     def __init__(self, gateway):
         """"""
         super().__init__(gateway)

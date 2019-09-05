@@ -253,6 +253,111 @@ class ContractData(BaseData):
 
 
 @dataclass
+class SpreadData:
+    """
+    Spread data contains basic info of spread. it contains :
+        -  two Contracts ## spread with more than 2 legs will be handled later
+        - basis: leg1 px - leg2 px
+    """
+    # (BaseData)
+    ticker: str
+    leg1: str
+    leg2: str
+
+    leg1Tick: TickData = None
+    leg2Tick: TickData = None
+
+    leg1Bar: BarData = None
+    leg2Bar: BarData = None
+
+    basis: float = 0
+
+    # vars with default value
+    mode: str = 'ltp'
+    leg1Coeff: float = 1.0
+
+    def __init__(self, ticker, leg1Ticker, leg2Ticker):
+        self.ticker = ticker
+        self.leg1 = leg1Ticker
+        self.leg2 = leg2Ticker
+        self.bid_price_1 = 0
+        self.ask_price_1 = 0
+        self.spreadTick = None
+
+    def __post_init__(self):
+        self.ticker = "SPC_%s&%s" % (
+            self.leg1.Tick.symbol, self.leg2.Tick.symbol)
+
+    # is this still a data class with update funcs?
+    def update_basis_on_tick(self, tick: TickData):
+        """
+        update basis on tick update
+        :return:
+        """
+
+        if tick.vt_symbol == self.leg1:
+            self.leg1Tick = tick
+        elif tick.vt_symbol == self.leg2:
+            self.leg2Tick = tick
+
+        if self.leg1Tick is None or self.leg2Tick is None:
+            return 0
+        if self.mode == 'ltp':
+            self.basis = self.leg1Coeff * self.leg1Tick.last_price - self.leg2Tick.last_price
+        elif self.mode == 'mid':
+            self.basis = (self.leg1Coeff * (self.leg1Tick.ask_price_1 + self.leg1Tick.bid_price_1)
+                          - (self.leg2Tick.ask_price_1 + self.leg2Tick.bid_price_1)) * 0.5
+        # active spread price
+        bid_price_1 = self.leg1Tick.ask_price_1 - self.leg2Tick.bid_price_1
+        ask_price_1 = self.leg1Tick.bid_price_1 - self.leg2Tick.ask_price_1
+
+        if self.spreadTick is None:
+            self.spreadTick = TickData(
+                gateway_name=tick.gateway_name,
+                symbol=self.ticker,
+                exchange=tick.exchange,
+                datetime=tick.datetime,
+                last_price=self.basis,
+                bid_price_1=bid_price_1,
+                ask_price_1=ask_price_1,
+                name=self.ticker,
+                volume=0,
+                open_interest=0,
+                last_volume=0,
+                limit_up=0,
+                limit_down=0,
+                open_price=0,
+                high_price=0,
+                low_price=0,
+                pre_close=0,
+                bid_price_2=0, bid_price_3=0, bid_price_4=0, bid_price_5=0,
+                ask_price_2=0, ask_price_3=0, ask_price_4=0, ask_price_5=0,
+                bid_volume_1=0, bid_volume_2=0, bid_volume_3=0, bid_volume_4=0, bid_volume_5=0,
+                ask_volume_1=0, ask_volume_2=0, ask_volume_3=0, ask_volume_4=0, ask_volume_5=0,
+            )
+        else:
+            self.spreadTick.datetime = tick.datetime
+            self.spreadTick.bid_price_1 = bid_price_1
+            self.spreadTick.ask_price_1 = ask_price_1
+            self.spreadTick.last_price = self.basis
+
+        return self.basis
+
+    def update_basis_on_bar(self, bar: BarData):
+        """
+        update basis on bar update
+        :param bar: bar data of either leg of the spread
+        :return:
+        """
+        if self.leg1Bar.symbol == bar.symbol:
+            self.leg1Bar = bar
+        elif self.leg2Bar.symbol == bar.symbol:
+            self.leg2Bar = bar
+        self.basis = self.leg1Coeff * self.leg1Bar.close_price - self.leg2Bar.close_price
+        return self.basis
+
+
+@dataclass
 class SubscribeRequest:
     """
     Request sending to specific gateway for subscribing tick data update.

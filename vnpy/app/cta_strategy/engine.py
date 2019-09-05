@@ -313,7 +313,8 @@ class CtaEngine(BaseEngine):
         )
 
         # Convert with offset converter
-        req_list = self.offset_converter.convert_order_request(original_req, lock)
+        req_list = self.offset_converter.convert_order_request(
+            original_req, lock)
 
         # Send Orders
         vt_orderids = []
@@ -612,13 +613,18 @@ class CtaEngine(BaseEngine):
         self.strategies[strategy_name] = strategy
 
         # Add vt_symbol to strategy map.
-        strategies = self.symbol_strategy_map[vt_symbol]
-        strategies.append(strategy)
+        for strategy_vt_symbol in strategy.vt_symbol_list:
+            strategies = self.symbol_strategy_map[strategy_vt_symbol]
+            strategies.append(strategy)
 
         # Update to setting file.
         self.update_strategy_setting(strategy_name, setting)
 
         self.put_strategy_event(strategy)
+        self.write_log('strategy_map')
+        for key, strategyList in self.symbol_strategy_map.items():
+            self.write_log('%s : %s' % (key, ','.join(
+                [x.strategy_name for x in strategyList])))
 
     def init_strategy(self, strategy_name: str):
         """
@@ -796,7 +802,8 @@ class CtaEngine(BaseEngine):
         Sync strategy data into json file.
         """
         data = strategy.get_variables()
-        data.pop("inited")      # Strategy status (inited, trading) should not be synced.
+        # Strategy status (inited, trading) should not be synced.
+        data.pop("inited")
         data.pop("trading")
 
         self.strategy_data[strategy.strategy_name] = data
