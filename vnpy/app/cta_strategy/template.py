@@ -189,6 +189,51 @@ class CtaTemplate(ABC):
                 self, direction, offset, price, volume, stop, lock
             )
             return vt_orderids
+            print('send order', vt_orderids)
+        else:
+            return []
+
+    def buy_spread(self, price: float, volume: float, stop: bool = False, lock: bool = False):
+        """
+        Send buy order to open a long position.
+        """
+        return self.send_spread_order(Direction.LONG, Offset.OPEN, price, volume, stop, lock)
+
+    def sell_spread(self, price: float, volume: float, stop: bool = False, lock: bool = False):
+        """
+        Send sell order to close a long position.
+        """
+        return self.send_spread_order(Direction.SHORT, Offset.CLOSE, price, volume, stop, lock)
+
+    def short_spread(self, price: float, volume: float, stop: bool = False, lock: bool = False):
+        """
+        Send short order to open as short position.
+        """
+        return self.send_spread_order(Direction.SHORT, Offset.OPEN, price, volume, stop, lock)
+
+    def cover_spread(self, price: float, volume: float, stop: bool = False, lock: bool = False):
+        """
+        Send cover order to close a short position.
+        """
+        return self.send_spread_order(Direction.LONG, Offset.CLOSE, price, volume, stop, lock)
+
+    def send_spread_order(
+        self,
+        direction: Direction,
+        offset: Offset,
+        price: float,
+        volume: float,
+        stop: bool = False,
+        lock: bool = False
+    ):
+        """
+        Send a new order to trade spread.
+        """
+        if self.trading:
+            vt_orderids = self.cta_engine.send_spread_order(
+                self, direction, offset, price, volume, stop, lock
+            )
+            return vt_orderids
         else:
             return []
 

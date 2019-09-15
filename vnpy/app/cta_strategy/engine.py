@@ -103,7 +103,10 @@ class CtaEngine(BaseEngine):
     def init_engine(self):
         """
         """
-        self.init_rqdata()
+        try:
+            self.init_rqdata()
+        except:
+            pass
         self.load_strategy_class()
         self.load_strategy_setting()
         self.load_strategy_data()
@@ -120,6 +123,7 @@ class CtaEngine(BaseEngine):
         self.event_engine.register(EVENT_ORDER, self.process_order_event)
         self.event_engine.register(EVENT_TRADE, self.process_trade_event)
         self.event_engine.register(EVENT_POSITION, self.process_position_event)
+        self.event_engine.register(EVENT_CTA_LOG, self.main_engine.engines['log'].process_log_event)
 
     def init_rqdata(self):
         """
@@ -195,7 +199,6 @@ class CtaEngine(BaseEngine):
     def process_trade_event(self, event: Event):
         """"""
         trade = event.data
-
         # Filter duplicate trade push
         if trade.vt_tradeid in self.vt_tradeids:
             return
@@ -208,10 +211,19 @@ class CtaEngine(BaseEngine):
             return
 
         # Update strategy pos before calling on_trade method
-        if trade.direction == Direction.LONG:
-            strategy.pos += trade.volume
+        if getattr(strategy, 'vt_symbol_list') is not None:
+            if trade.vt_symbol not in strategy.vt_symbol_list:
+                return
+            idx = self.vt_symbol_list.index(trade)
+            if trade.direction == Direction.LONG:
+                self.pos_list[idx] += trade.volume
+            else:
+                self.pos_list[idx] -= trade.volume
         else:
-            strategy.pos -= trade.volume
+            if trade.direction == Direction.LONG:
+                strategy.pos += trade.volume
+            else:
+                strategy.pos -= trade.volume
 
         self.call_strategy_func(strategy, strategy.on_trade, trade)
 
@@ -457,6 +469,35 @@ class CtaEngine(BaseEngine):
 
         self.call_strategy_func(strategy, strategy.on_stop_order, stop_order)
         self.put_stop_order_event(stop_order)
+
+    @staticmethod
+    def reverse_direction(self, direction):
+        if direction == Direction.LONG:
+            return Direction.SHORT
+        elif direction == Direction.SHORT:
+            return Direction.LONG
+
+    def send_spread_order(
+        self,
+        strategy: CtaTemplate,
+        direction: Direction,
+        offset: Offset,
+        price: float,
+        volume: float,
+        stop: bool,
+        lock: bool
+    ):
+        """
+        """
+
+        for idx in range(len(strategy.vt_symbol_list)):
+            vt_symbol = strategy.vt_symbol_list[idx]
+            contract = self.main_engine.get_contract(vt_symbol)
+            if strategy.coef_list[idx] < 0:
+                direction = self.reverse_direction(direction)
+            price = round_to(price, contract.pricetick)
+            volume = round_to(volume * strategy.coef_list[idx], contract.min_volume)
+            self.send_order(strategy, direction, offset, price, volume, stop, lock)
 
     def send_order(
         self,
