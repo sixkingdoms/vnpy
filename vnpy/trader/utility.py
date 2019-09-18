@@ -24,6 +24,7 @@ def extract_vt_symbol(vt_symbol: str) -> Tuple[str, Exchange]:
     """
     :return: (symbol, exchange)
     """
+
     symbol, exchange_str = vt_symbol.split(".")
     return symbol, Exchange(exchange_str)
 

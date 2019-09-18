@@ -166,6 +166,17 @@ class TradeData(BaseData):
         self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
         self.vt_orderid = f"{self.gateway_name}.{self.orderid}"
         self.vt_tradeid = f"{self.gateway_name}.{self.tradeid}"
+        self.dict = self.to_dict()
+
+    def to_dict(self):
+        obj_dict = {'symbol': self.symbol, 'exchange': self.exchange, 'orderid': self.orderid,
+                    'tradeid': self.tradeid,
+                    'offset': self.offset, 'price': self.price, 'volume': self.volume, 'time': self.time,
+                    'vt_symbol': self.vt_symbol, 'direction': Direction.int(self.direction),
+                    'vt_orderid': self.vt_orderid,
+                    'vt_trade_id': self.vt_tradeid}
+
+        return obj_dict
 
 
 @dataclass
@@ -336,15 +347,15 @@ class SpreadData:
                 # default is mid:
                 for leg in self.leg_tick_dict.keys():
                     self.basis += self.leg_coef_dict[tick.vt_symbol] * (0.5 * (self.leg_coef_dict[leg].ask_price_1
-                                                                              + self.leg_coef_dict[leg].bid_price_1))
+                                                                               + self.leg_coef_dict[leg].bid_price_1))
         else:
             if self.mode == 'ltp':
-                for leg in self.leg_tick_dict.keys():
-                    self.leg_coef_dict[leg] * self.leg_tick_dict[leg].last_price
+                # for leg in self.leg_tick_dict.keys():
+                #     self.leg_coef_dict[leg] * self.leg_tick_dict[leg].last_price
                 self.basis += self.leg_coef_dict[tick.vt_symbol] * (tick.last_price - old_ltp)
             else:
                 # default is mid:
-                self.basis += self.leg_coef_dict[tick.vt_symbol] * (0.5 *(tick.ask_price_1 + tick.bid_price_1)
+                self.basis += self.leg_coef_dict[tick.vt_symbol] * (0.5 * (tick.ask_price_1 + tick.bid_price_1)
                                                                     - old_mid)
         # active spread price
         bid_price_1 = 0 # self.leg1Tick.ask_price_1 - self.leg2Tick.bid_price_1

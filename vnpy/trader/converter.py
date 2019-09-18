@@ -100,7 +100,6 @@ class PositionHolding:
         self.exchange: Exchange = contract.exchange
 
         self.active_orders: Dict[str, OrderData] = {}
-
         self.long_pos: float = 0
         self.long_yd: float = 0
         self.long_td: float = 0
@@ -147,6 +146,9 @@ class PositionHolding:
 
     def update_trade(self, trade: TradeData) -> None:
         """"""
+
+        self.trades[trade.tradeid] = trade.dict
+
         if trade.direction == Direction.LONG:
             if trade.offset == Offset.OPEN:
                 self.long_td += trade.volume
