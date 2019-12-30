@@ -102,13 +102,14 @@ class SpreadArbitrage(CtaTemplate):
         """
         # self.bg.update_tick()
         # self.spread.update_basis_on_tick(tick)
-        self.write_log(f'update tick event on {tick.vt_symbol}')
-        self.spread.update_basis_on_tick_list(tick)
+        # self.write_log(f'update tick event on {tick.vt_symbol}')
+        # self.spread.update_basis_on_tick_list(tick)
         if self.spread.spreadTick is not None:
             self.bg.update_tick(self.spread.spreadTick)
         self.calc_pl()
-        self.write_log(f'pl {self.pl} on tick update: {tick}')
+
         self.basis = self.spread.basis
+        self.write_log(f'pl {self.pl}, basis {self.basis} on tick update: {tick.vt_symbol}')
         self.put_event()
 
     def on_bar(self, bar: BarData):
