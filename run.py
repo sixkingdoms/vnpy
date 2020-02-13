@@ -5,6 +5,7 @@ from vnpy.gateway.ctp import CtpGateway
 from vnpy.app.cta_strategy import CtaStrategyApp
 from vnpy.app.cta_backtester import CtaBacktesterApp
 from vnpy.app.algo_trading import AlgoTradingApp
+from vnpy.app.option_master import OptionMasterApp
 
 
 def main():
@@ -18,6 +19,7 @@ def main():
     main_engine.add_app(CtaStrategyApp)
     main_engine.add_app(CtaBacktesterApp)
     main_engine.add_app(AlgoTradingApp)
+    main_engine.add_app(OptionMasterApp)
 
     main_window = MainWindow(main_engine, event_engine)
     main_window.showMaximized()
