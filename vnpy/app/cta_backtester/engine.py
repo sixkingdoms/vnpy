@@ -61,8 +61,11 @@ class BacktesterEngine(BaseEngine):
         Init RQData client.
         """
         result = rqdata_client.init()
+
         if result:
             self.write_log("RQData数据接口初始化成功")
+        else:
+            self.write_log('RQData数据接口初始化失败')
 
     def write_log(self, msg: str):
         """"""
@@ -381,6 +384,7 @@ class BacktesterEngine(BaseEngine):
                 )
             # Otherwise use RQData to query data
             else:
+                self.write_log('query history data via RQData')
                 data = rqdata_client.query_history(req)
 
             if data:

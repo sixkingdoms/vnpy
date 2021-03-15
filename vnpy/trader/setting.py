@@ -24,7 +24,7 @@ SETTINGS: Dict[str, Any] = {
     "email.sender": "",
     "email.receiver": "",
 
-    "rqdata.username": "",
+    "rqdata.username": "license",
     "rqdata.password": "",
 
     "database.timezone": get_localzone().zone,

@@ -30,7 +30,6 @@ def calculate_price(
     double t,
     double v,
     int cp,
-    double d1 = 0.0
 ) -> float:
     """Calculate option price"""
     cdef double d2, price
@@ -39,8 +38,7 @@ def calculate_price(
     if v <= 0:
         return max(0, cp * (s - k))
 
-    if not d1:
-        d1 = calculate_d1(s, k, r, t, v)
+    d1 = (log(s / k) + (0.5 * pow(v, 2)) * t) / (v * sqrt(t))
     d2 = d1 - v * sqrt(t)
 
     price = cp * (s * cdf(cp * d1) - k * cdf(cp * d2)) * exp(-r * t)
@@ -170,7 +168,7 @@ def calculate_greeks(
 
     d1 = calculate_d1(s, k, r, t, v)
     
-    price = calculate_price(s, k, r, t, v, cp, d1)
+    price = calculate_price(s, k, r, t, v, cp)
     delta = calculate_delta(s, k, r, t, v, cp, d1)
     gamma = calculate_gamma(s, k, r, t, v, d1)
     theta = calculate_theta(s, k, r, t, v, cp, d1, annual_days)
@@ -188,6 +186,9 @@ def calculate_impv(
     int cp
 ):
     """Calculate option implied volatility"""
+    def __reduce__():
+        return calculate_impv, (price,s,k,r,t,cp)
+
     cdef bint meet
     cdef double v, p, vega, dx
 
@@ -209,8 +210,8 @@ def calculate_impv(
 
     # Calculate implied volatility with Newton's method
     v = 0.3     # Initial guess of volatility
-
-    for i in range(50):
+    dx = 1
+    while abs(dx) >= 0.00001:
         # Caculate option price and vega with current guess
         p = calculate_price(s, k, r, t, v, cp)
         vega = calculate_original_vega(s, k, r, t, v, cp)
@@ -221,10 +222,6 @@ def calculate_impv(
 
         # Calculate error value
         dx = (price - p) / vega
-
-        # Check if error value meets requirement
-        if abs(dx) < 0.00001:
-            break
 
         # Calculate guessed implied volatility of next round
         v += dx
@@ -237,3 +234,6 @@ def calculate_impv(
     v = round(v, 4)
 
     return v
+
+
+
