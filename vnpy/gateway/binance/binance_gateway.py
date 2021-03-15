@@ -422,7 +422,8 @@ class BinanceRestApi(RestClient):
         for account_data in data["balances"]:
             account = AccountData(
                 accountid=account_data["asset"],
-                balance=float(account_data["free"]) + float(account_data["locked"]),
+                balance=float(account_data["free"]) +
+                float(account_data["locked"]),
                 frozen=float(account_data["locked"]),
                 gateway_name=self.gateway_name
             )
@@ -548,7 +549,8 @@ class BinanceRestApi(RestClient):
             # Add end time if specified
             if req.end:
                 end_time = int(datetime.timestamp(req.end))
-                params["endTime"] = end_time * 1000     # convert to millisecond
+                params["endTime"] = end_time * \
+                    1000     # convert to millisecond
 
             # Get response from server
             resp = self.request(
@@ -573,6 +575,8 @@ class BinanceRestApi(RestClient):
                 buf = []
 
                 for l in data:
+                    dt = datetime.fromtimestamp( l[0] / 1000)    # convert to second
+
                     bar = BarData(
                         symbol=req.symbol,
                         exchange=req.exchange,

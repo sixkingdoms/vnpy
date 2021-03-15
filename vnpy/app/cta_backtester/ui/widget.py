@@ -415,7 +415,6 @@ class BacktesterManager(QtWidgets.QWidget):
         interval = self.interval_combo.currentText()
         start_date = self.start_date_edit.date()
         end_date = self.end_date_edit.date()
-
         start = datetime(
             start_date.year(),
             start_date.month(),
@@ -432,7 +431,6 @@ class BacktesterManager(QtWidgets.QWidget):
             59,
             tzinfo=get_localzone()
         )
-
         self.backtester_engine.start_downloading(
             vt_symbol,
             interval,

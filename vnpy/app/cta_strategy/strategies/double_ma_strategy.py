@@ -59,6 +59,7 @@ class DoubleMaStrategy(CtaTemplate):
         Callback of new tick data update.
         """
         self.bg.update_tick(tick)
+        self.write_log('%s %.1f' % (tick.vt_symbol, tick.last_price))
 
     def on_bar(self, bar: BarData):
         """

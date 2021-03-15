@@ -396,7 +396,8 @@ class OkexfRestApi(RestClient):
                     exchange=Exchange.OKEX,
                     direction=Direction.LONG,
                     volume=int(pos_data["long_qty"]),
-                    frozen=float(pos_data["long_qty"]) - float(pos_data["long_avail_qty"]),
+                    frozen=float(pos_data["long_qty"]) -
+                    float(pos_data["long_avail_qty"]),
                     price=float(pos_data["long_avg_cost"]),
                     pnl=float(pos_data["realised_pnl"]),
                     gateway_name=self.gateway_name,
@@ -431,6 +432,9 @@ class OkexfRestApi(RestClient):
                 price=float(order_data["price"]),
                 volume=float(order_data["size"]),
                 datetime=utc_to_local(order_data["timestamp"]),
+                # time=utc_to_local(
+                #     order_data["timestamp"]).strftime("%H:%M:%S"),
+
                 status=STATUS_OKEXF2VT[order_data["status"]],
                 gateway_name=self.gateway_name,
             )
@@ -698,7 +702,8 @@ class OkexfWebsocketApi(WebsocketClient):
         msg = f"触发异常，状态码：{exception_type}，信息：{exception_value}"
         self.gateway.write_log(msg)
 
-        sys.stderr.write(self.exception_detail(exception_type, exception_value, tb))
+        sys.stderr.write(self.exception_detail(
+            exception_type, exception_value, tb))
 
     def login(self):
         """

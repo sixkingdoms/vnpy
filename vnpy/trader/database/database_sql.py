@@ -329,7 +329,8 @@ def init_models(db: Database, driver: Driver):
                         ).execute()
                 else:
                     for c in chunked(dicts, 50):
-                        DbTickData.insert_many(c).on_conflict_replace().execute()
+                        DbTickData.insert_many(
+                            c).on_conflict_replace().execute()
 
     db.connect()
     db.create_tables([DbBarData, DbTickData])
@@ -350,6 +351,7 @@ class SqlManager(BaseDatabaseManager):
         start: datetime,
         end: datetime,
     ) -> Sequence[BarData]:
+        #print ('load bar data',symbol, exchange.value, interval.value, start, end)
         s = (
             self.class_bar.select()
                 .where(
@@ -361,6 +363,7 @@ class SqlManager(BaseDatabaseManager):
             )
             .order_by(self.class_bar.datetime)
         )
+        #print ('nb of records : %d',len(s))
         data = [db_bar.to_bar() for db_bar in s]
         return data
 

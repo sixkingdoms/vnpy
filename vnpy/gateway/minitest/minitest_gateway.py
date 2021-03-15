@@ -550,7 +550,8 @@ class MiniTdApi(TdApi):
         account = AccountData(
             accountid=data["AccountID"],
             balance=data["Balance"],
-            frozen=data["FrozenMargin"] + data["FrozenCash"] + data["FrozenCommission"],
+            frozen=data["FrozenMargin"] +
+            data["FrozenCash"] + data["FrozenCommission"],
             gateway_name=self.gateway_name
         )
         account.available = data["Available"]
@@ -576,10 +577,11 @@ class MiniTdApi(TdApi):
             # For option only
             if contract.product == Product.OPTION:
                 contract.option_underlying = data["UnderlyingInstrID"],
-                contract.option_type = OPTIONTYPE_MINI2VT.get(data["OptionsType"], None),
+                contract.option_type = OPTIONTYPE_MINI2VT.get(
+                    data["OptionsType"], None),
                 contract.option_strike = data["StrikePrice"],
-                contract.option_expiry = datetime.strptime(data["ExpireDate"], "%Y%m%d"),
 
+                contract.option_expiry = datetime.strptime(data["ExpireDate"], "%Y%m%d"),
             self.gateway.on_contract(contract)
 
             symbol_exchange_map[contract.symbol] = contract.exchange

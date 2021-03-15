@@ -13,6 +13,16 @@ class Direction(Enum):
     SHORT = "空"
     NET = "净"
 
+    @staticmethod
+    def int(direction):
+        direction_int = {Direction.LONG: 1, Direction.SHORT: -1}
+        return direction_int[direction]
+
+    @staticmethod
+    def reverse(direction):
+        direction_rev = {Direction.LONG: Direction.SHORT, Direction.SHORT: Direction.LONG}
+        return direction_rev[direction]
+
 
 class Offset(Enum):
     """

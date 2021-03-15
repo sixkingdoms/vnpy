@@ -9,8 +9,9 @@ from typing import Any, Callable
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from copy import copy
-from tzlocal import get_localzone
 
+from tzlocal import get_localzone
+import numpy as np
 from vnpy.event import Event, EventEngine
 from vnpy.trader.engine import BaseEngine, MainEngine
 from vnpy.trader.object import (
@@ -104,7 +105,10 @@ class CtaEngine(BaseEngine):
     def init_engine(self):
         """
         """
-        self.init_rqdata()
+        try:
+            self.init_rqdata()
+        except:
+            pass
         self.load_strategy_class()
         self.load_strategy_setting()
         self.load_strategy_data()
@@ -121,6 +125,7 @@ class CtaEngine(BaseEngine):
         self.event_engine.register(EVENT_ORDER, self.process_order_event)
         self.event_engine.register(EVENT_TRADE, self.process_trade_event)
         self.event_engine.register(EVENT_POSITION, self.process_position_event)
+        self.event_engine.register(EVENT_CTA_LOG, self.main_engine.engines['log'].process_log_event)
 
     def init_rqdata(self):
         """
@@ -175,7 +180,6 @@ class CtaEngine(BaseEngine):
         if order.vt_orderid in vt_orderids and not order.is_active():
             vt_orderids.remove(order.vt_orderid)
 
-        # For server stop order, call strategy on_stop_order function
         if order.type == OrderType.STOP:
             so = StopOrder(
                 vt_symbol=order.vt_symbol,
@@ -196,7 +200,6 @@ class CtaEngine(BaseEngine):
     def process_trade_event(self, event: Event):
         """"""
         trade = event.data
-
         # Filter duplicate trade push
         if trade.vt_tradeid in self.vt_tradeids:
             return
@@ -209,18 +212,32 @@ class CtaEngine(BaseEngine):
             return
 
         # Update strategy pos before calling on_trade method
-        if trade.direction == Direction.LONG:
-            strategy.pos += trade.volume
+
+        if getattr(strategy, 'vt_symbol_list') is not None and \
+                getattr(strategy, 'pos_list') is not None:
+            if trade.vt_symbol not in strategy.vt_symbol_list:
+                return
+
+            idx = strategy.vt_symbol_list.index(trade.vt_symbol)
+            if trade.direction == Direction.LONG:
+                strategy.pos_list[idx] += trade.volume
+            else:
+                strategy.pos_list[idx] -= trade.volume
         else:
-            strategy.pos -= trade.volume
-
+            if trade.direction == Direction.LONG:
+                strategy.pos += trade.volume
+            else:
+                strategy.pos -= trade.volume
+        self.write_log(f'TRADE: {trade.orderid},{trade.vt_symbol}, {trade.direction}, \
+                    {trade.price}, {trade.volume}')
+        # self.write_log(f'Position Holding: {self.offset_converter.get_position_holding(trade.vt_symbol)}')
         self.call_strategy_func(strategy, strategy.on_trade, trade)
-
-        # Sync strategy variables to data file
-        self.sync_strategy_data(strategy)
-
         # Update GUI
         self.put_strategy_event(strategy)
+        # update trade list
+        strategy.trade_list.append(trade.dict)
+        # Sync strategy variables to data file
+        self.sync_strategy_data(strategy)
 
     def process_position_event(self, event: Event):
         """"""
@@ -314,14 +331,15 @@ class CtaEngine(BaseEngine):
         )
 
         # Convert with offset converter
-        req_list = self.offset_converter.convert_order_request(original_req, lock)
+        req_list = self.offset_converter.convert_order_request(
+            original_req, lock)
 
         # Send Orders
         vt_orderids = []
 
         for req in req_list:
             req.reference = strategy.strategy_name      # Add strategy name as order reference
-
+            # self.write_log(f'orderRequest {req}')
             vt_orderid = self.main_engine.send_order(
                 req, contract.gateway_name)
 
@@ -460,6 +478,49 @@ class CtaEngine(BaseEngine):
         self.call_strategy_func(strategy, strategy.on_stop_order, stop_order)
         self.put_stop_order_event(stop_order)
 
+    def reverse_direction(self, direction):
+        if direction == Direction.LONG:
+            return Direction.SHORT
+        elif direction == Direction.SHORT:
+            return Direction.LONG
+
+    def send_spread_order(
+        self,
+        strategy: CtaTemplate,
+        direction: Direction,
+        offset: Offset,
+        price: float,
+        volume: float,
+        stop: bool,
+        lock: bool,
+        active: bool=True
+    ):
+        """
+        """
+        vt_orderids = []
+        for idx in range(len(strategy.vt_symbol_list)):
+            vt_symbol = strategy.vt_symbol_list[idx]
+            vt_direction = direction
+            if strategy.weight_list[idx] < 0:
+                vt_direction = Direction.reverse(direction) #self.reverse_direction(direction)
+            if active:
+                if vt_direction == Direction.LONG:
+                    price = strategy.spread.leg_tick_dict[vt_symbol].ask_price_1
+                elif vt_direction == Direction.SHORT:
+                    price = strategy.spread.leg_tick_dict[vt_symbol].bid_price_1
+            else:
+                if vt_direction == Direction.LONG:
+                    price = strategy.spread.leg_tick_dict[vt_symbol].bid_price_1
+                elif vt_direction == Direction.SHORT:
+                    price = strategy.spread.leg_tick_dict[vt_symbol].ask_price_1
+
+            contract_orders = self.send_order(strategy, vt_direction, offset, price, abs(volume), stop, lock, vt_symbol)
+            vt_orderids.extend(contract_orders)
+            self.write_log(f"ORDER: {contract_orders}: {vt_symbol}({strategy.weight_list[idx]}) : \
+                            {vt_direction} {price} {abs(volume)}")
+        strategy.vt_orderids.extend(vt_orderids)
+        return vt_orderids
+
     def send_order(
         self,
         strategy: CtaTemplate,
@@ -468,13 +529,16 @@ class CtaEngine(BaseEngine):
         price: float,
         volume: float,
         stop: bool,
-        lock: bool
+        lock: bool,
+        vt_symbol=None
     ):
         """
         """
-        contract = self.main_engine.get_contract(strategy.vt_symbol)
+        if vt_symbol is None:
+            vt_symbol = strategy.vt_symbol
+        contract = self.main_engine.get_contract(vt_symbol)
         if not contract:
-            self.write_log(f"委托失败，找不到合约：{strategy.vt_symbol}", strategy)
+            self.write_log(f"委托失败，找不到合约：{vt_symbol}", strategy)
             return ""
 
         # Round order price and volume to nearest incremental value
@@ -482,11 +546,13 @@ class CtaEngine(BaseEngine):
         volume = round_to(volume, contract.min_volume)
 
         if stop:
+            self.write_log(f'send stop order {contract}')
             if contract.stop_supported:
                 return self.send_server_stop_order(strategy, contract, direction, offset, price, volume, lock)
             else:
                 return self.send_local_stop_order(strategy, direction, offset, price, volume, lock)
         else:
+            # self.write_log(f'send limit order ')
             return self.send_limit_order(strategy, contract, direction, offset, price, volume, lock)
 
     def cancel_order(self, strategy: CtaTemplate, vt_orderid: str):
@@ -626,13 +692,18 @@ class CtaEngine(BaseEngine):
         self.strategies[strategy_name] = strategy
 
         # Add vt_symbol to strategy map.
-        strategies = self.symbol_strategy_map[vt_symbol]
-        strategies.append(strategy)
+        for strategy_vt_symbol in strategy.vt_symbol_list:
+            strategies = self.symbol_strategy_map[strategy_vt_symbol]
+            strategies.append(strategy)
 
         # Update to setting file.
         self.update_strategy_setting(strategy_name, setting)
 
         self.put_strategy_event(strategy)
+        self.write_log('strategy_map')
+        for key, strategyList in self.symbol_strategy_map.items():
+            self.write_log('%s : %s' % (key, ','.join(
+                [x.strategy_name for x in strategyList])))
 
     def init_strategy(self, strategy_name: str):
         """
@@ -742,7 +813,8 @@ class CtaEngine(BaseEngine):
 
         # Remove from symbol strategy map
         strategies = self.symbol_strategy_map[strategy.vt_symbol]
-        strategies.remove(strategy)
+        if strategy in strategies:
+            strategies.remove(strategy)
 
         # Remove from active orderid map
         if strategy_name in self.strategy_orderid_map:
@@ -805,7 +877,8 @@ class CtaEngine(BaseEngine):
         Sync strategy data into json file.
         """
         data = strategy.get_variables()
-        data.pop("inited")      # Strategy status (inited, trading) should not be synced.
+        # Strategy status (inited, trading) should not be synced.
+        data.pop("inited")
         data.pop("trading")
 
         self.strategy_data[strategy.strategy_name] = data
@@ -910,12 +983,17 @@ class CtaEngine(BaseEngine):
         """
         Create cta engine log event.
         """
-        if strategy:
-            msg = f"{strategy.strategy_name}: {msg}"
+        try:
+            if strategy:
+                msg = f"{strategy.strategy_name}: {msg}"
 
-        log = LogData(msg=msg, gateway_name="CtaStrategy")
-        event = Event(type=EVENT_CTA_LOG, data=log)
-        self.event_engine.put(event)
+            log = LogData(msg=msg, gateway_name="CtaStrategy")
+            event = Event(type=EVENT_CTA_LOG, data=log)
+            self.event_engine.put(event)
+        except:
+            log = LogData(msg='Error printing : %s'%msg, gateway_name="CtaStrategy")
+            event = Event(type=EVENT_CTA_LOG, data=log)
+            self.event_engine.put(event)
 
     def send_email(self, msg: str, strategy: CtaTemplate = None):
         """

@@ -271,7 +271,7 @@ class LogEngine(BaseEngine):
         self.logger.setLevel(self.level)
 
         self.formatter = logging.Formatter(
-            "%(asctime)s  %(levelname)s: %(message)s"
+            "%(asctime)s %(filename)s(%(lineno)d) %(levelname)s: %(message)s"
         )
 
         self.add_null_handler()
@@ -305,12 +305,13 @@ class LogEngine(BaseEngine):
         Add file output of log.
         """
         today_date = datetime.now().strftime("%Y%m%d")
-        filename = f"vt_{today_date}.log"
+        pid = os.getpid()
+        filename = f"vt_{today_date}_{pid}.log"
         log_path = get_folder_path("log")
         file_path = log_path.joinpath(filename)
 
         file_handler = logging.FileHandler(
-            file_path, mode="a", encoding="utf8"
+            file_path, mode="a", encoding="utf8", delay=False
         )
         file_handler.setLevel(self.level)
         file_handler.setFormatter(self.formatter)
@@ -324,9 +325,9 @@ class LogEngine(BaseEngine):
         """
         Process log event.
         """
+
         log = event.data
         self.logger.log(log.level, log.msg)
-
 
 class OmsEngine(BaseEngine):
     """

@@ -28,17 +28,24 @@ class CtaTemplate(ABC):
         self.cta_engine = cta_engine
         self.strategy_name = strategy_name
         self.vt_symbol = vt_symbol
-
+        self.vt_symbol_list = [self.vt_symbol]
         self.inited = False
         self.trading = False
         self.pos = 0
-
+        self.pl = 0
+        self.vt_orderids = []
+        self.trade_list = []
+        self.contract_dict = {}
+        self.pl_dict = {}
         # Copy a new variables list here to avoid duplicate insert when multiple
         # strategy instances are created with the same strategy class.
         self.variables = copy(self.variables)
         self.variables.insert(0, "inited")
         self.variables.insert(1, "trading")
         self.variables.insert(2, "pos")
+        self.variables.insert(3, "pl")
+
+
 
         self.update_setting(setting)
 
@@ -89,6 +96,8 @@ class CtaTemplate(ABC):
             "author": self.author,
             "parameters": self.get_parameters(),
             "variables": self.get_variables(),
+            "vt_symbol_list": [],# self.vt_symbol_list,
+            "position_list": [], # self.pos_list,
         }
         return strategy_data
 
@@ -139,7 +148,11 @@ class CtaTemplate(ABC):
         """
         Callback of new order data update.
         """
-        pass
+        vt_orderid = order.vt_orderid
+
+        if not order.is_active() and vt_orderid in self.vt_orderids:
+            self.vt_orderids.remove(vt_orderid)
+        # pass
 
     @virtual
     def on_stop_order(self, stop_order: StopOrder):
@@ -172,6 +185,34 @@ class CtaTemplate(ABC):
         """
         return self.send_order(Direction.LONG, Offset.CLOSE, price, volume, stop, lock)
 
+    def buy_spread(self, price: float, volume: float, stop: bool = False, lock: bool = False):
+        """
+        Send buy order to open a long position.
+        """
+        self.write_log('send buy order to open long spread position')
+        return self.send_spread_order(Direction.LONG, Offset.OPEN, price, volume, stop, lock)
+
+    def sell_spread(self, price: float, volume: float, stop: bool = False, lock: bool = False):
+        """
+        Send sell order to close a long position.
+        """
+        self.write_log('send sell order to close a long spread position')
+        return self.send_spread_order(Direction.SHORT, Offset.CLOSE, price, volume, stop, lock)
+
+    def short_spread(self, price: float, volume: float, stop: bool = False, lock: bool = False):
+        """
+        Send short order to open as short position.
+        """
+        self.write_log('send short order to open a short spread position')
+        return self.send_spread_order(Direction.SHORT, Offset.OPEN, price, volume, stop, lock)
+
+    def cover_spread(self, price: float, volume: float, stop: bool = False, lock: bool = False):
+        """
+        Send cover order to close a short position.
+        """
+        self.write_log(f"Send cover order to close a short spread position {self.pos_list}.")
+        return self.send_spread_order(Direction.LONG, Offset.CLOSE, price, volume, stop, lock)
+
     def send_order(
         self,
         direction: Direction,
@@ -188,6 +229,27 @@ class CtaTemplate(ABC):
             vt_orderids = self.cta_engine.send_order(
                 self, direction, offset, price, volume, stop, lock
             )
+            self.vt_orderids.extend(vt_orderids)
+            return vt_orderids
+        else:
+            return []
+
+    def send_spread_order(self,
+        direction: Direction,
+        offset: Offset,
+        price: float,
+        volume: float,
+        stop: bool = False,
+        lock: bool = False
+    ):
+        """
+        Send a new order to trade spread.
+        """
+        if self.trading:
+            vt_orderids = self.cta_engine.send_spread_order(
+                self, direction, offset, price, volume, stop, lock
+            )
+
             return vt_orderids
         else:
             return []

@@ -10,6 +10,7 @@ from vnpy.app.option_master import OptionMasterApp
 from vnpy.app.portfolio_manager import PortfolioManagerApp
 from vnpy.app.portfolio_strategy import PortfolioStrategyApp
 from vnpy.app.risk_manager import RiskManagerApp
+from vnpy.app.algo_trading import AlgoTradingApp
 def main():
     """Start VN Trader"""
     qapp = create_qapp()
@@ -17,17 +18,24 @@ def main():
     event_engine = EventEngine()
     main_engine = MainEngine(event_engine)
 
+
     main_engine.add_gateway(SoptGateway)
-    # main_engine.add_app(CtaStrategyApp)
-    # main_engine.add_app(CtaBacktesterApp)
     main_engine.add_app(OptionMasterApp)
     main_engine.add_app(RiskManagerApp)
     # main_engine.add_app(PortfolioManagerApp)
     # main_engine.add_app(PortfolioStrategyApp)
+    main_engine.add_gateway(CtpGateway)
+    main_engine.add_app(CtaStrategyApp)
+    main_engine.add_app(CtaBacktesterApp)
+    main_engine.add_app(AlgoTradingApp)
+    main_engine.add_app(OptionMasterApp)
+
     main_window = MainWindow(main_engine, event_engine)
     main_window.showMaximized()
 
     qapp.exec()
+
+
 
 
 if __name__ == "__main__":

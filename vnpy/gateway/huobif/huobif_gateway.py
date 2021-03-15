@@ -813,6 +813,7 @@ class HuobifWebsocketApiBase(WebsocketClient):
 
 class HuobifTradeWebsocketApi(HuobifWebsocketApiBase):
     """"""
+
     def __init__(self, gateway):
         """"""
         super().__init__(gateway)
